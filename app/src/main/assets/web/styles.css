@@ -9,3 +9,47 @@
 @media(max-width:1100px){.exercise-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:760px){.assist-card{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.hero-art{top:auto;bottom:24px}}
+
+/* Scorciatoie leggibili e raggiungibili anche su telefoni stretti. */
+.keyboard-tools{flex-wrap:wrap;overflow:visible;padding:12px;gap:8px}
+.keyboard-tools button{flex:0 0 auto;min-width:44px;min-height:44px;padding:10px 12px;white-space:nowrap;font:600 14px/1.25 monospace;color:#f4f8f1;background:#345540;border-color:#7b9c87}
+.keyboard-tools button:hover,.keyboard-tools button:focus-visible{background:#41684f}
+.keyboard-tools button:active{background:#527e60}
+.line-numbers{contain:size;font-size:14px;line-height:1.625;color:#a7c2af}
+.model-choice{flex-wrap:wrap;gap:14px}.model-choice>div:first-child{min-width:0;flex:1 1 190px}.model-source{display:block;overflow-wrap:anywhere}.model-buttons{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.model-buttons .btn{margin:0}.tutor-metrics{border-top:1px solid var(--line);margin-top:18px;padding-top:18px}.metrics-list>div{padding:10px 0;border-bottom:1px solid var(--line);font-size:12px;overflow-wrap:anywhere}.metrics-list p{font-size:12px}.license-text{max-height:280px;overflow:auto;white-space:pre-wrap;font-size:12px;overflow-wrap:anywhere}.license-consent{display:flex;align-items:flex-start;gap:10px;margin:18px 0;font-size:13px;line-height:1.6}.license-consent input{flex-shrink:0;margin-top:5px;width:20px;height:20px}#personal-hint-controls{grid-column:1/-1}#personal-hint-controls .btn{width:100%}.personal-hint small{display:block;margin-top:10px}
+
+/* Archivio delle sfide: numeri stabili per percorso, stati e ripresa della bozza. */
+.challenge-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.challenge-stats .card{padding:17px;min-width:0}
+.challenge-stats b{display:block;font-size:27px}
+.challenge-stats span,.challenge-overview p,.challenge-copy small{font-size:12px;color:var(--ink)}
+.challenge-filters{max-width:100%;padding:4px 1px 8px}
+.challenge-filters .filter{min-height:44px}
+.challenge-track{margin:24px 0 32px}
+.challenge-overview .row>div{min-width:0}
+.challenge-overview .badge-icon{flex-shrink:0}
+.challenge-overview h2{font-size:21px;overflow-wrap:anywhere}
+.challenge-overview>p{margin:15px 0 10px}
+.challenge-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.challenge-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.challenge-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:6px 12px}
+.challenge-row .exercise-number{grid-row:1/span 2;width:36px;height:36px}
+.challenge-row .tag{grid-column:2;grid-row:2;justify-self:start;margin:0;color:var(--ink)}
+.challenge-row>svg{grid-column:3;grid-row:1/span 2}
+.challenge-copy{min-width:0}
+.challenge-copy h3{font-size:14px;line-height:1.55;overflow-wrap:anywhere;margin-top:3px}
+.challenge-overview+.empty{margin-top:12px}
+.generation-card{flex-wrap:wrap}
+.generation-card>div:not(.generation-actions){flex:1 1 160px;min-width:0;overflow-wrap:anywhere}
+.generation-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+@media(max-width:760px){
+  .bottom-item{flex:1 1 0;min-width:0;width:auto;padding:7px 4px}
+  .challenge-stats{gap:8px}
+  .challenge-stats .card{padding:13px 10px}
+  .challenge-stats b{font-size:24px}
+  .challenge-stats span{font-size:11px}
+  .challenge-overview{padding:18px}
+  .challenge-overview h2{font-size:19px}
+  .challenge-row .tag{font-size:11px;white-space:normal}
+  .generation-ready .btn{width:100%}
+}

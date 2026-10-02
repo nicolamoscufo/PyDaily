@@ -1,4 +1,5 @@
 import {TRACKS, LESSONS, EXERCISES} from './curriculum.js';
+import {rememberDiagnostic,validDiagnostic,validPersonalHint} from './practice.js';
 export {TRACKS, LESSONS, EXERCISES};
 export const STORAGE_KEY = 'pydaily-v1';
 let generated = {};
@@ -23,6 +24,12 @@ export function validateState(raw) {
   for(const [id,value] of Object.entries(raw.review)) if(!LESSONS.some(l=>l.id===id) || !value || !/^\d{4}-\d{2}-\d{2}$/.test(value.due||'') || !Number.isInteger(value.stage) || value.stage<0 || value.stage>4) throw Error('Il backup contiene ripassi non validi.');
   for(const [key,value] of Object.entries(raw.daily)) if(!/^\d{4}-\d{2}-\d{2}$/.test(key) || !value || !Array.isArray(value.solved) || !Number.isFinite(value.attempts) || !Number.isFinite(value.xp)) throw Error('Il backup contiene giornate non valide.');
   for(const [id,value] of Object.entries(raw.variantSerial)) if(!TRACKS.some(t=>t.id===id)||!Number.isInteger(value)||value<0||value>100000) throw Error('Il backup contiene laboratori non validi.');
+  for(const value of Object.values(raw.attempts)){
+    if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Il backup contiene tentativi non validi.');
+    for(const key of ['lastRun','lastFailure'])if(value[key]!==undefined&&!validDiagnostic(value[key]))throw Error('Il backup contiene una diagnosi non valida.');
+    if(value.lastRunAt!==undefined&&(!Number.isFinite(value.lastRunAt)||value.lastRunAt<0))throw Error('Il backup contiene una data di verifica non valida.');
+    if(value.personalHints!==undefined&&(!Array.isArray(value.personalHints)||value.personalHints.length>3||!value.personalHints.every(validPersonalHint)))throw Error('Il backup contiene suggerimenti personali non validi.');
+  }
   return {...initialState(),...raw,reminder:{enabled:false,time:'19:30'}};
 }
 export const independentCount=(s,track)=>Object.entries(s.solved).filter(([id,r])=>!r.assisted && (!track || getExercise(id)?.track===track)).length;
@@ -44,13 +51,14 @@ export function reviewAnswer(s,lesson,correct,today=dayKey()) {
   s.review[lesson]={stage,due:shiftDay(today,gap),reason:correct?'Ripasso programmato':'Riprova con calma'};
   if(correct)s.read[lesson]=today;
 }
-export function recordAttempt(s,exercise,{passed,assisted=false,code='',error=''},today=dayKey()) {
+export function recordAttempt(s,exercise,{passed,assisted=false,code='',error='',result=null},today=dayKey()) {
   const id=exercise.id;
   const d=s.daily[today] ||= {attempts:0,solved:[],xp:0};
   d.attempts++;
   const old=s.attempts[id]||{count:0,failures:0};
   s.attempts[id]={...old,count:old.count+1,failures:old.failures+(passed?0:1),lastDay:today,lastError:passed?'':String(error).slice(0,600)};
   s.drafts[id]=code;
+  if(result)rememberDiagnostic(s,exercise,code,result);
   if(!passed){needReview(s,exercise.lesson,today);return {xp:0,newSolved:false,promoted:false};}
   const prior=s.solved[id];
   const newSolved=!prior;
@@ -114,10 +122,28 @@ export function getExercise(id){
   const match=/^(python|algorithms|data|ml|dl|rl|automation)-lab-(\d+)$/.exec(id);
   return match?makeVariant(match[1],Number(match[2])):null;
 }
+export function challengeStatus(s,e){
+  const solved=s.solved[e.id];
+  if(solved)return solved.assisted?'guided':'solved';
+  const attempt=s.attempts[e.id];
+  return (Object.hasOwn(s.drafts,e.id)&&s.drafts[e.id]!==e.starter)||attempt?.count>0||attempt?.lastRun||attempt?.tipsUnlocked>0||attempt?.revealedDay||attempt?.personalHints?.length?'in-progress':'ready';
+}
+export function generatedSequence(s,track){
+  // Le chiavi ai-* mantengono l'ordine di inserimento anche nei backup schema 1.
+  // La numerazione per percorso è derivata: nessuna riscrittura dei vecchi esercizi.
+  const numbers={};
+  return Object.values(s.generated||{}).map(exercise=>({exercise,number:numbers[exercise.track]=(numbers[exercise.track]||0)+1,status:challengeStatus(s,exercise)})).filter(item=>!track||item.exercise.track===track);
+}
+export function generatedProgress(s,track,today=dayKey()){
+  const entries=generatedSequence(s,track),count=status=>entries.filter(item=>item.status===status).length;
+  const independent=count('solved'),guided=count('guided');
+  const next=entries.find(item=>item.status==='ready'||item.status==='in-progress')||entries.find(item=>item.status==='guided'&&s.solved[item.exercise.id].day!==today)||null;
+  return {entries,total:entries.length,independent,guided,completed:independent+guided,inProgress:count('in-progress'),ready:count('ready'),pending:entries.length-independent-guided,next};
+}
 export function recommend(s,track=s.preferred){
   const level=levelFor(s,track),today=dayKey();
-  const ai=Object.values(s.generated||{}).filter(e=>e.track===track&&!s.solved[e.id]);
-  if(ai.length)return ai[ai.length-1];
+  const next=generatedProgress(s,track,today).next;
+  if(next)return next.exercise;
   const available=EXERCISES.filter(e=>e.track===track&&(!s.solved[e.id] || (s.solved[e.id].assisted&&s.solved[e.id].day!==today)));
   available.sort((a,b)=>Math.abs(a.level-level)-Math.abs(b.level-level)||a.level-b.level);
   if(available.length)return available[0];

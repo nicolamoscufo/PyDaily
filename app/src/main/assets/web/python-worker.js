@@ -13,10 +13,13 @@ _allowed = {'math','statistics','random','collections','itertools','functools','
 _blocked_calls = {'eval','exec','compile','open','input','__import__','breakpoint','globals','locals','getattr','setattr','delattr','vars','dir','exit','quit'}
 def _clean(v):
     if hasattr(v, 'tolist'): v = v.tolist()
-    if isinstance(v, dict): return {str(k): _clean(x) for k,x in v.items()}
-    if isinstance(v, (list, tuple)): return [_clean(x) for x in v]
+    if isinstance(v, dict):
+        if _job.get('validateGenerated') and any(not isinstance(k,str) for k in v): raise ValueError('Il risultato deve avere chiavi JSON stringa.')
+        return {str(k): _clean(x) for k,x in v.items()}
+    if isinstance(v, list) or (isinstance(v, tuple) and not _job.get('validateGenerated')): return [_clean(x) for x in v]
     if v is None or isinstance(v,(str,bool,int)): return v
-    if isinstance(v,float): return v if _math.isfinite(v) else str(v)
+    if isinstance(v,float) and _math.isfinite(v): return v
+    if _job.get('validateGenerated'): raise ValueError('Il ritorno diretto non è un valore JSON finito.')
     return str(v)
 def _same(a,b):
     if isinstance(a,bool) or isinstance(b,bool): return type(a) is type(b) and a == b
@@ -28,10 +31,17 @@ _result = {'passed':False,'cases':[],'output':'','error':''}
 try:
     if len(_code)>12000: raise ValueError('Il codice supera 12.000 caratteri.')
     _tree = _ast.parse(_code, filename='esercizio.py')
+    if _job.get('validateGenerated'):
+        _defs = [n for n in _tree.body if isinstance(n,_ast.FunctionDef)]
+        if len(_defs)!=1 or _defs[0].name!=_job['function']: raise ValueError('La soluzione deve definire una sola funzione pubblica con il nome richiesto.')
+        _signature = _defs[0].args
+        if [a.arg for a in _signature.args]!=_job['params'] or _signature.posonlyargs or _signature.kwonlyargs or _signature.vararg or _signature.kwarg or _signature.defaults or _defs[0].decorator_list: raise ValueError('La firma Python non coincide con i parametri dichiarati.')
+        if any(not isinstance(n,(_ast.FunctionDef,_ast.Import,_ast.ImportFrom)) for n in _tree.body): raise ValueError('Usa solo import e la funzione, senza esecuzione fuori dalla funzione.')
     for _node in _ast.walk(_tree):
         if isinstance(_node,_ast.Import):
             if any(a.name.split('.')[0] not in _allowed for a in _node.names): raise ValueError('Questo modulo non è incluso. Usa Python standard o NumPy.')
         if isinstance(_node,_ast.ImportFrom) and ((_node.module or '').split('.')[0] not in _allowed or _node.level): raise ValueError('Questo modulo non è incluso.')
+        if _job.get('validateGenerated') and ((isinstance(_node,_ast.Import) and any('random' in a.name.split('.') for a in _node.names)) or (isinstance(_node,_ast.ImportFrom) and ('random' in (_node.module or '').split('.') or any(a.name=='random' for a in _node.names))) or (isinstance(_node,_ast.Attribute) and _node.attr=='random')): raise ValueError('La sfida generata deve essere deterministica, senza random.')
         if isinstance(_node,_ast.Name) and _node.id in _blocked_calls: raise ValueError('Questa funzione non è disponibile negli esercizi. Usa i parametri e return.')
         if isinstance(_node,_ast.Attribute) and _node.attr.startswith('__'): raise ValueError('Gli attributi interni non sono disponibili negli esercizi.')
     _stream = _io.StringIO()

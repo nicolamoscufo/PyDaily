@@ -21,30 +21,30 @@ import java.util.*;
 
 public class MainActivity extends Activity {
     private WebView web;
+    private FrameLayout root;
     private LocalTutor tutor;
     private String exportText="";
+    private String exportName="PyDaily-progressi.json";
     private String reminderTime="19:30";
     static final int PICK_MODEL=21, EXPORT=22, IMPORT=23, NOTIFICATIONS=24;
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(247,248,244));
-        getWindow().setNavigationBarColor(Color.rgb(247,248,244));
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        FrameLayout root=new FrameLayout(this);
-        root.setBackgroundColor(Color.rgb(247,248,244));
+        root=new FrameLayout(this);
         web=new WebView(this);
         root.addView(web,new FrameLayout.LayoutParams(-1,-1));setContentView(root);
+        applyTheme("dark".equals(getSharedPreferences("native",0).getString("uiTheme","light")));
         root.setOnApplyWindowInsetsListener((view,insets)->{
             if(Build.VERSION.SDK_INT>=30){android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.ime());view.setPadding(bars.left,bars.top,bars.right,bars.bottom);}
             else{view.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());}
             return insets;
         });
         WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);
+        if(Build.VERSION.SDK_INT>=33)s.setAlgorithmicDarkeningAllowed(false);
+        else if(Build.VERSION.SDK_INT>=29)s.setForceDark(WebSettings.FORCE_DARK_OFF);
         s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);
         CookieManager.getInstance().setAcceptCookie(false);
-        web.setBackgroundColor(Color.rgb(247,248,244));
         web.setWebViewClient(new WebViewClient(){
             @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest request){return asset(request.getUrl());}
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){return !"pydaily.local".equals(request.getUrl().getHost());}
@@ -81,15 +81,31 @@ public class MainActivity extends Activity {
     }
     void event(JSONObject event){runOnUiThread(()->{if(web!=null)web.evaluateJavascript("window.PyDailyNative && window.PyDailyNative.onEvent("+event.toString()+")",null);});}
     void screenAwake(boolean value){runOnUiThread(()->{if(web!=null)web.setKeepScreenOn(value);});}
+    private void applyTheme(boolean dark){
+        int color=dark?Color.rgb(16,25,20):Color.rgb(247,248,244);
+        getWindow().setStatusBarColor(color);getWindow().setNavigationBarColor(color);
+        int lightFlags=View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        int flags=getWindow().getDecorView().getSystemUiVisibility();
+        getWindow().getDecorView().setSystemUiVisibility(dark?flags&~lightFlags:flags|lightFlags);
+        if(root!=null)root.setBackgroundColor(color);
+        if(web!=null)web.setBackgroundColor(color);
+    }
     public final class Bridge {
+        @JavascriptInterface public void setTheme(String mode){
+            if(!"light".equals(mode)&&!"dark".equals(mode))return;
+            runOnUiThread(()->{getSharedPreferences("native",0).edit().putString("uiTheme",mode).apply();applyTheme("dark".equals(mode));});
+        }
         @JavascriptInterface public String modelStatus(){return tutor.status().toString();}
         @JavascriptInterface public void modelAction(String action){runOnUiThread(()->tutor.action(action));}
         @JavascriptInterface public void generateExercise(String id,String system,String prompt){tutor.generate(id,system,prompt);}
+        @JavascriptInterface public void generateHint(String id,String system,String prompt){tutor.generate(id,system,prompt,true);}
         @JavascriptInterface public void cancelGeneration(){tutor.cancel();}
-        @JavascriptInterface public void exportProgress(String text){if(text.length()>10*1024*1024)return;exportText=text;runOnUiThread(()->{Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("application/json");intent.putExtra(Intent.EXTRA_TITLE,"PyDaily-progressi.json");startActivityForResult(intent,EXPORT);});}
+        @JavascriptInterface public void exportProgress(String text){exportFile(text,"PyDaily-progressi.json");}
+        @JavascriptInterface public void exportTutorMetrics(String text){exportFile(text,"PyDaily-misure-tutor.json");}
         @JavascriptInterface public void importProgress(){runOnUiThread(()->{Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("*/*");startActivityForResult(intent,IMPORT);});}
         @JavascriptInterface public void reminder(boolean enabled,String time){runOnUiThread(()->setReminder(enabled,time));}
     }
+    private void exportFile(String text,String name){if(text.length()>10*1024*1024)return;exportText=text;exportName=name;runOnUiThread(()->{Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("application/json");intent.putExtra(Intent.EXTRA_TITLE,exportName);startActivityForResult(intent,EXPORT);});}
     private void setReminder(boolean enabled,String time){
         if(!time.matches("([01][0-9]|2[0-3]):[0-5][0-9]"))return;
         reminderTime=time;

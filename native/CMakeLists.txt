@@ -13,6 +13,8 @@ set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_LLAMAFILE OFF CACHE BOOL "" FORCE)
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 set(GGML_BACKEND_DL OFF CACHE BOOL "" FORCE)
+# Anche l'APK debug deve ottimizzare i kernel di inferenza; simboli e assert restano.
+add_compile_options("$<$<CONFIG:Debug>:-O3>")
 add_subdirectory(llama.cpp)
 add_library(pydaily_llm SHARED tutor.cpp)
 target_include_directories(pydaily_llm PRIVATE llama.cpp/include)

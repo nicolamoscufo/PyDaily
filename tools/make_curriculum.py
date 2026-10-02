@@ -197,6 +197,7 @@ assert len(EXERCISES) == 70
 assert len(set(x['id'] for x in EXERCISES)) == len(EXERCISES)
 lesson_ids = {l['id'] for l in LESSONS}
 assert all(e['lesson'] in lesson_ids for e in EXERCISES)
-out=Path(__file__).resolve().parents[1]/'app/src/main/assets/web/curriculum.js'
-out.write_text('export const TRACKS = '+json.dumps(TRACKS,ensure_ascii=False)+';\nexport const LESSONS = '+json.dumps(LESSONS,ensure_ascii=False)+';\nexport const EXERCISES = '+json.dumps(EXERCISES,ensure_ascii=False)+';\n')
-print(f'{len(EXERCISES)} esercizi, {len(LESSONS)} mini lezioni → {out.name}')
+if __name__ == '__main__':
+ out=Path(__file__).resolve().parents[1]/'app/src/main/assets/web/curriculum.js'
+ out.write_text('export const TRACKS = '+json.dumps(TRACKS,ensure_ascii=False)+';\nexport const LESSONS = '+json.dumps(LESSONS,ensure_ascii=False)+';\nexport const EXERCISES = '+json.dumps(EXERCISES,ensure_ascii=False)+';\n', encoding='utf-8', newline='\n')
+ print(f'{len(EXERCISES)} esercizi, {len(LESSONS)} mini lezioni -> {out.name}')

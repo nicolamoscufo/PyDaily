@@ -19,12 +19,17 @@ Il file [AGENTS.md](AGENTS.md) fornisce le regole del progetto. [OPENCODE.md](OP
 - 70 esercizi offline, 22 mini-lezioni e 7 percorsi: Python, algoritmi, dati/NumPy, ML, DL, RL e automazione.
 - Esecuzione reale di Python 3.12 e NumPy in un worker separato.
 - Difficoltà per percorso: un livello in più dopo due problemi diversi risolti autonomamente.
-- Suggerimenti progressivi, spiegazioni, soluzione guidata e ripasso a 1/3/7/14 giorni.
+- Suggerimenti progressivi, indizi personali basati sul codice e sulla sua esecuzione Python, spiegazioni, soluzione guidata e ripasso a 1/3/7/14 giorni.
 - XP, obiettivo quotidiano, streak, notifiche opzionali e backup JSON.
-- Qwen2.5-Coder 3B o 1.5B quantizzato in GGUF, download verificato e inferenza locale su CPU.
+- Temi Chiaro, Scuro e Come il telefono in Profilo → Aspetto; scorciatoie dell'editor leggibili anche su telefoni stretti.
+- Qwen2.5-Coder 3B/1.5B e opzioni sperimentali Qwen3-0.6B, Qwen3-1.7B e **MobileLLM-R1.5-950M**, in GGUF Q4_K_M, download verificato e inferenza locale su CPU. MobileLLM richiede consenso alla licenza non commerciale.
+- Cambio fra modelli scaricati senza eliminare i precedenti; misure locali esportabili di tempi, token e cicli di generazione.
 - Nuove sfide sottoposte a controlli del formato e all'esecuzione della soluzione prima di essere mostrate.
+- **Tutor → Sfide del tutor**: archivio numerato per percorso, bozze da riprendere, risultati autonomi/guidati e continuazione dalla prima sfida ancora da svolgere, anche senza modello attivo.
 
 La guida completa per usare l'app è in [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
+
+**Limite della pubblicazione:** la patch MobileLLM in `native/llama.cpp/src/models/llama4.cpp` resta soltanto nella copia di lavoro locale ed è esclusa da commit e push. Il catalogo conserva MobileLLM, ma una build dai soli sorgenti pubblicati non include la correzione necessaria al suo caricamento. Anche il test nativo del loader denso richiede quella patch. Qwen e le modifiche del bridge PyDaily non dipendono da essa.
 
 ## Verifiche rapide
 
@@ -55,6 +60,8 @@ npm run test:browser
 
 Gli screenshot del test vengono salvati in `artifacts/`. Per usare un browser già installato, imposta `PYDAILY_BROWSER_EXECUTABLE` al suo percorso. Il test sceglie una porta locale libera.
 
+Per le prove native ARM64 con fixture sintetiche, dopo la build Android: `tools/test_native.ps1 -DeviceSerial SERIAL_ADB`. Non installa l'app né usa i suoi modelli/progressi. Dettagli in [docs/TUTOR_MODELS.md](docs/TUTOR_MODELS.md).
+
 ## Preview
 
 ```bash
@@ -84,15 +91,17 @@ La vecchia pipeline diretta è conservata in `tools/build_apk.py`: richiede un a
 | `app/src/main/assets/web/` | Interfaccia e logica JavaScript |
 | `core.js` | Stato, XP, livelli, ripasso e backup |
 | `tutor.js` | Prompt, parsing e collegamento al tutor nativo |
+| `practice.js` / `metrics.js` | Diagnosi delle prove e misure locali limitate |
+| `models.json` | Catalogo unico dei GGUF, revisioni, dimensioni e SHA-256 |
 | `runner.js` / `python-worker.js` | Esecuzione Python e timeout |
 | `app/src/main/java/it/pydaily/app/` | WebView, download GGUF, notifiche e bridge |
 | `native/tutor.cpp` | Inferenza JNI e grammatica JSON |
-| `native/llama.cpp/` | Dipendenza vendorizzata fissata, con licenza |
+| `native/llama.cpp/` | Dipendenza vendorizzata fissata, con licenza; patch MobileLLM solo nella copia locale |
 | `tools/make_curriculum.py` | Fonte editoriale del catalogo |
 | `tests/` | Test dello stato e flussi browser |
 
 Modifica i contenuti in `tools/make_curriculum.py`, poi rigenera con `python3 tools/make_curriculum.py`. `curriculum.js` è un file generato.
 
-[VERIFICA.md](VERIFICA.md) distingue le verifiche effettuate sulla versione originale da quelle rieseguite durante questa consegna. La nuova build Gradle e una prova su Android fisico restano da eseguire.
+[VERIFICA.md](VERIFICA.md) distingue le verifiche originali da quelle successive, comprese build/installazione ARM64, editor/tema sul telefono e misure sul GGUF reale. I test con bridge simulato non attestano prestazioni o qualità del modello; il collaudo completo dei sette percorsi e delle notifiche rimane da eseguire.
 
 Licenze: [LICENSE](LICENSE) e [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
