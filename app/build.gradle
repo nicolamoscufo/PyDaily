@@ -1,4 +1,5 @@
 plugins { id 'com.android.application' }
+def projectDevelopmentKey = file('../tools/development.jks')
 android {
  namespace 'it.pydaily.app'
  compileSdk 35
@@ -15,6 +16,11 @@ android {
  externalNativeBuild { cmake { path '../native/CMakeLists.txt'; version '3.22.1' } }
  compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
  packaging { jniLibs { useLegacyPackaging false } }
- signingConfigs { projectDevelopment { storeFile file('../tools/development.jks'); storePassword 'android'; keyAlias 'pydaily'; keyPassword 'android' } }
- buildTypes { debug { signingConfig signingConfigs.projectDevelopment }; release { minifyEnabled false } }
+ if (projectDevelopmentKey.exists()) {
+  signingConfigs { projectDevelopment { storeFile projectDevelopmentKey; storePassword 'android'; keyAlias 'pydaily'; keyPassword 'android' } }
+ }
+ buildTypes {
+  debug { if (projectDevelopmentKey.exists()) { signingConfig signingConfigs.projectDevelopment } }
+  release { minifyEnabled false }
+ }
 }

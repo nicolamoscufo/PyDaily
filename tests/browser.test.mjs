@@ -3,21 +3,31 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
 const webRoot=new URL('../app/src/main/assets/web/',import.meta.url);
 const server=createServer((req,res)=>{try{const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).replace(/^\//,'')||'index.html';const bytes=readFileSync(new URL(name,webRoot));const ext=name.split('.').at(-1);res.setHeader('Content-Type',({js:'text/javascript',mjs:'text/javascript',wasm:'application/wasm',css:'text/css',html:'text/html',json:'application/json',svg:'image/svg+xml',woff2:'font/woff2',ttf:'font/ttf'})[ext]||'application/octet-stream');res.end(bytes);}catch{res.statusCode=404;res.end();}});
-await new Promise(resolve=>server.listen(8765,'127.0.0.1',resolve));
 const require=createRequire(import.meta.url);
-const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
-const browser=await chromium.launch({executablePath:new URL('../../build-env/browser/chrome-headless-shell-linux64/chrome-headless-shell',import.meta.url).pathname,args:['--no-sandbox']});
+let playwright;
+try { playwright=require('playwright'); }
+catch(error) {
+ if(!process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES)throw new Error('Installa le dipendenze con npm install prima dei test browser.',{cause:error});
+ playwright=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
+}
+const {chromium}=playwright;
+const browser=await chromium.launch({
+ ...(process.env.PYDAILY_BROWSER_EXECUTABLE?{executablePath:process.env.PYDAILY_BROWSER_EXECUTABLE}:{}),
+ args:['--no-sandbox']
+});
+try {
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const origin='http://127.0.0.1:'+server.address().port;
 const context=await browser.newContext({viewport:{width:393,height:852},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 const page=await context.newPage(),errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
-await page.goto('http://127.0.0.1:8765');
+await page.goto(origin);
 await page.getByRole('button',{name:'Cominciamo'}).click();
-await mkdir(new URL('../../deliverables',import.meta.url),{recursive:true});
-await page.screenshot({path:new URL('../../deliverables/PyDaily-anteprima.png',import.meta.url).pathname,fullPage:false});
+await mkdir(new URL('../artifacts/',import.meta.url),{recursive:true});
+await page.screenshot({path:new URL('../artifacts/PyDaily-anteprima.png',import.meta.url).pathname,fullPage:false});
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 await page.getByRole('button',{name:'Inizia la sfida'}).click();
 await page.locator('#code-editor').fill('def doppio(numero):\n    print(numero * 2)');
@@ -56,7 +66,7 @@ await page.locator('[data-action="exercise"][data-id="data-scala_array"]').click
 await page.locator('#code-editor').fill('def scala_array(valori, fattore):\n    import numpy as np\n    return (np.array(valori) * fattore).tolist()');
 await page.getByRole('button',{name:'Verifica la soluzione'}).click();
 await page.getByText('Tutti i test superati.').waitFor({timeout:45000});
-await page.screenshot({path:new URL('../../deliverables/PyDaily-editor.png',import.meta.url).pathname,fullPage:true});
+await page.screenshot({path:new URL('../artifacts/PyDaily-editor.png',import.meta.url).pathname,fullPage:true});
 await page.locator('#code-editor').fill('def scala_array(valori, fattore):\n    while True:\n        pass');
 await page.getByRole('button',{name:'Verifica la soluzione'}).click();
 await page.getByText('Tempo scaduto (4 secondi).').waitFor({timeout:12000});
@@ -75,7 +85,7 @@ await aiContext.addInitScript(()=>{
  }};
 });
 const aiPage=await aiContext.newPage();
-await aiPage.goto('http://127.0.0.1:8765');
+await aiPage.goto(origin);
 await aiPage.getByRole('button',{name:'Cominciamo'}).click();
 await aiPage.getByRole('button',{name:'Genera una sfida'}).click();
 await aiPage.getByRole('heading',{name:'Somma gli estremi',exact:true}).waitFor({timeout:45000});
@@ -84,7 +94,7 @@ assert.equal(await aiPage.evaluate(()=>Object.keys(JSON.parse(localStorage.getIt
 await aiPage.locator('#code-editor').fill('def somma_estremi(valori):\n    return valori[0]+valori[-1] if valori else 0');
 await aiPage.getByRole('button',{name:'Verifica la soluzione'}).click();
 await aiPage.getByText('Tutti i test superati.').waitFor();
-await aiPage.screenshot({path:new URL('../../deliverables/PyDaily-tutor.png',import.meta.url).pathname,fullPage:true});
+await aiPage.screenshot({path:new URL('../artifacts/PyDaily-tutor.png',import.meta.url).pathname,fullPage:true});
 await aiPage.getByRole('button',{name:'Prossimo problema'}).click();
 await aiPage.getByRole('heading',{name:'Massimo in coppia',exact:true}).waitFor();
 assert.equal(await aiPage.evaluate(()=>window.testGenerationPrompts.length),3);
@@ -97,5 +107,7 @@ await aiPage.locator('#toast').getByText('Il tutor non ha prodotto una sfida val
 assert.equal(await aiPage.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('pydaily-v1')).generated).length),2);
 assert.match(await aiPage.evaluate(()=>window.testGenerationPrompts[3]),/Learner level: 2/);
 console.log('AI_FLOW_OK: esercizio errato rifiutato, rigenerazione verificata, progressione continua, livello aggiornato, ripetizioni rifiutate.');
-await browser.close();
-server.close();
+} finally {
+ await browser.close();
+ if(server.listening)await new Promise(resolve=>server.close(resolve));
+}

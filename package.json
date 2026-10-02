@@ -1,1 +1,19 @@
-{"name":"pydaily","version":"1.0.0","type":"module","private":true,"scripts":{"test":"node --test tests/core.test.mjs","preview":"python3 -m http.server 8765 --directory app/src/main/assets/web"}}
+{
+  "name": "pydaily",
+  "version": "1.0.0",
+  "description": "Allenamento Python quotidiano su Android con tutor GGUF locale",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/core.test.mjs",
+    "test:browser": "node tests/browser.test.mjs",
+    "test:curriculum": "python3 tools/verify_curriculum.py",
+    "preview": "python3 -m http.server 8765 --directory app/src/main/assets/web"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

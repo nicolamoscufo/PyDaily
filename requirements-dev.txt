@@ -1,0 +1,2 @@
+# Verifica del catalogo Python. Non è una dipendenza del pacchetto Android.
+numpy>=2.0,<3
